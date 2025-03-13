@@ -1,5 +1,4 @@
 """
-agents.py - Implementation of human and bot agents for social media simulation
 using Mesa 3.1.4
 """
 
