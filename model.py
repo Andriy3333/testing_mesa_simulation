@@ -25,8 +25,11 @@ class SmallWorldNetworkModel(mesa.Model):
         connection_rewiring_prob=0.1,  # For small world network
         topic_shift_frequency=30,  # Steps between major topic shifts
         dimensions=5,  # Dimensions in topic space
+        seed=None,  # Added seed parameter
     ):
-        super().__init__()
+        # Pass the seed to super().__init__() as required in Mesa 3.0+
+        super().__init__(seed=seed)
+
         self.num_initial_humans = num_initial_humans
         self.num_initial_bots = num_initial_bots
         self.human_creation_rate = human_creation_rate
