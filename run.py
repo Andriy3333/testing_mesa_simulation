@@ -4,7 +4,7 @@ run_simulation.py - Script to run the social media simulation
 
 import matplotlib.pyplot as plt
 import numpy as np
-from SmallWorldNetworkModel import SmallWorldNetworkModel
+from model import SmallWorldNetworkModel
 
 def run_simulation(steps=365, num_humans=100, num_bots=20, seed=None):
     """
