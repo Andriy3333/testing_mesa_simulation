@@ -1,6 +1,6 @@
 """
 visualization.py - Solara visualization for social media simulation
-using Mesa 3.1.4
+using Mesa 3.1.4 and Solara 1.44.1
 """
 
 import solara
@@ -10,6 +10,8 @@ from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import pandas as pd
+import time
+import threading
 
 from model import SmallWorldNetworkModel
 from mesa.visualization import SolaraViz, make_space_component, make_plot_component
@@ -93,15 +95,6 @@ def satisfaction_histogram(model):
     return fig
 
 
-# Create interval handler outside of the component to avoid the nested function warning
-@solara.component
-def IntervalHandler(callback, interval_ms=1000):
-    interval = solara.use_interval(interval_ms)  # noqa: SH104
-
-    if interval.value:
-        callback()
-
-
 # Create a Solara dashboard component
 @solara.component
 def SocialMediaDashboard():
@@ -126,8 +119,12 @@ def SocialMediaDashboard():
     # Reactive model to update visualization
     model = solara.use_reactive(None)
 
-    # Data for plots
-    model_data = solara.use_reactive(pd.DataFrame())
+    # Store model data as a list of dictionaries instead of directly as a DataFrame
+    # to prevent re-render loops
+    model_data_list = solara.use_reactive([])
+
+    # Update counter for triggering re-renders
+    update_counter = solara.use_reactive(0)
 
     # Function to initialize the model
     def initialize_model():
@@ -149,7 +146,7 @@ def SocialMediaDashboard():
         )
 
         # Reset data
-        model_data.value = pd.DataFrame()
+        model_data_list.value = []
 
         return new_model
 
@@ -163,13 +160,15 @@ def SocialMediaDashboard():
             # Step the model
             model.value.step()
 
-            # Update data
-            current_data = model.value.datacollector.get_model_vars_dataframe().iloc[-1:]
+            # Get current data as a dictionary
+            df_row = model.value.datacollector.get_model_vars_dataframe().iloc[-1:].to_dict('records')[0]
+            df_row['step'] = model.value.steps
 
-            if model_data.value.empty:
-                model_data.value = current_data
-            else:
-                model_data.value = pd.concat([model_data.value, current_data])
+            # Update data list using a new list to avoid reference issues
+            model_data_list.value = model_data_list.value + [df_row]
+
+            # Increment update counter to trigger re-renders
+            update_counter.value += 1
 
     # Function to run multiple steps
     def run_steps():
@@ -180,6 +179,38 @@ def SocialMediaDashboard():
     def reset():
         is_running.value = False
         model.value = initialize_model()
+        update_counter.value += 1
+
+    # Background auto-stepping using a side effect
+    def auto_step_effect():
+        # Only set up auto-stepping when running is true
+        if not is_running.value:
+            return None
+
+        # Function to execute in a timer
+        def timer_callback():
+            # This runs in a background thread
+            if is_running.value:
+                # Use solara.patch to safely update from a background thread
+                solara.patch(lambda: run_steps())
+
+                # Schedule the next step after a delay
+                threading.Timer(1.0, timer_callback).start()
+
+        # Start the timer
+        threading.Timer(1.0, timer_callback).start()
+
+        # Return a cleanup function
+        return lambda: None  # No cleanup needed
+
+    # Set up the auto-stepping effect when is_running changes
+    solara.use_effect(auto_step_effect, [is_running.value])
+
+    # Convert model_data_list to DataFrame for plotting
+    def get_model_dataframe():
+        if model_data_list.value:
+            return pd.DataFrame(model_data_list.value)
+        return pd.DataFrame()
 
     # Create the dashboard layout
     with solara.Column():
@@ -211,7 +242,7 @@ def SocialMediaDashboard():
         # Center-aligned row for controls and state
         with solara.Row(justify="center"):
             # Simulation controls
-            with solara.Column(classes=["w-2/5"]):
+            with solara.Column(classes=["w-3/5"]):
                 with solara.Card(title="Simulation Controls"):
                     # First row of controls
                     with solara.Row():
@@ -234,7 +265,7 @@ def SocialMediaDashboard():
                 pass
 
             # Current state display
-            with solara.Column(classes=["w-2/5"]):
+            with solara.Column(classes=["w-1/4"]):
                 if model.value:
                     with solara.Card(title="Current State"):
                         with solara.Row():
@@ -245,39 +276,31 @@ def SocialMediaDashboard():
                                 f"Avg Satisfaction: {model.value.get_avg_human_satisfaction():.1f}"
                             )
 
-        # Add Auto Run component using the separate handler
-        if is_running.value:
-            IntervalHandler(run_steps, 1000)
-
         # Create time series plots
+        df = get_model_dataframe()
+
         with solara.Columns([1, 1]):
-            if model.value and not model_data.value.empty:
+            if model.value and not df.empty:
                 # Line plots of key metrics
                 with solara.Card(title="Population Over Time"):
-                    solara.FigurePlotly(
-                        pd.DataFrame({
-                            'Step': model_data.value.index,
-                            'Humans': model_data.value["Active Humans"],
-                            'Bots': model_data.value["Active Bots"]
-                        }).plot(
-                            x='Step',
-                            y=['Humans', 'Bots'],
-                            labels={"value": "Count", "variable": "Agent Type"}
-                        )
-                    )
+                    fig1, ax1 = plt.subplots(figsize=(8, 4))
+                    ax1.plot(df['step'], df['Active Humans'], label='Humans')
+                    ax1.plot(df['step'], df['Active Bots'], label='Bots')
+                    ax1.set_xlabel('Step')
+                    ax1.set_ylabel('Count')
+                    ax1.legend()
+                    ax1.grid(True, alpha=0.3)
+                    solara.FigureMatplotlib(fig1)
 
                 # Satisfaction over time
                 with solara.Card(title="Satisfaction Over Time"):
-                    solara.FigurePlotly(
-                        pd.DataFrame({
-                            'Step': model_data.value.index,
-                            'Satisfaction': model_data.value["Average Human Satisfaction"]
-                        }).plot(
-                            x='Step',
-                            y='Satisfaction',
-                            labels={"value": "Satisfaction Level"}
-                        )
-                    )
+                    fig2, ax2 = plt.subplots(figsize=(8, 4))
+                    ax2.plot(df['step'], df['Average Human Satisfaction'], color='green')
+                    ax2.set_xlabel('Step')
+                    ax2.set_ylabel('Satisfaction Level')
+                    ax2.set_ylim(0, 100)
+                    ax2.grid(True, alpha=0.3)
+                    solara.FigureMatplotlib(fig2)
 
 
 # Main app
