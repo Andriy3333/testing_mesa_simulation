@@ -11,12 +11,12 @@ from datetime import date, timedelta
 class BotAgent(SocialMediaAgent):
     """Bot agent in the social media simulation."""
 
-    def __init__(self, unique_id, model):
+    def __init__(self, model):
         # Use model's RNG for reproducibility
         self.bot_type = model.random.choice(["spam", "misinformation", "astroturfing"])
 
-        # Pass keyword arguments to super().__init__
-        super().__init__(unique_id=unique_id, model=model, post_type=self.bot_type)
+        # Pass only model to super().__init__ in Mesa 3.1.4
+        super().__init__(model=model, post_type=self.bot_type)
         self.agent_type = "bot"
 
         # Bot characteristics - use model's RNG

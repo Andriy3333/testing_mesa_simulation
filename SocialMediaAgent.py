@@ -4,16 +4,14 @@ using Mesa 3.1.4
 """
 
 import mesa
-import random
 from datetime import date, timedelta
 
 class SocialMediaAgent(mesa.Agent):
     """Base class for all agents in the social media simulation."""
 
-    def __init__(self, unique_id, model, post_type=None, post_frequency=None):
-        # In Mesa 3.1.4, Agent.__init__ no longer accepts positional arguments
-        # We need to explicitly pass unique_id and model as kwargs
-        super().__init__(unique_id=unique_id, model=model)
+    def __init__(self, model, post_type=None, post_frequency=None):
+        # In Mesa 3.1.4, Agent.__init__ only requires model
+        super().__init__(model=model)
 
         self.creation_date = date(2022, 1, 1) + timedelta(model.steps)
         self.deactivation_date = None
@@ -36,7 +34,10 @@ class SocialMediaAgent(mesa.Agent):
 
     def get_agent_by_id(self, id):
         """Retrieve an agent by their unique ID from the model's agents collection."""
-        return self.model.agents.get_agent_by_id(id)
+        for agent in self.model.agents:
+            if agent.unique_id == id:
+                return agent
+        return None
 
     def should_post(self):
         """Determine if the agent should post based on their post frequency."""
@@ -61,5 +62,10 @@ class SocialMediaAgent(mesa.Agent):
 
     def get_connections(self):
         """Return a list of connected agent instances."""
-        return [self.get_agent_by_id(agent_id) for agent_id in self.connections
-                if self.get_agent_by_id(agent_id) is not None]
+        connected_agents = []
+        for agent_id in self.connections:
+            for agent in self.model.agents:
+                if agent.unique_id == agent_id:
+                    connected_agents.append(agent)
+                    break
+        return connected_agents

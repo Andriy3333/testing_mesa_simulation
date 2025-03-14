@@ -11,9 +11,9 @@ from datetime import date, timedelta
 class HumanAgent(SocialMediaAgent):
     """Human agent in the social media simulation."""
 
-    def __init__(self, unique_id, model):
-        # Pass keyword arguments to super().__init__
-        super().__init__(unique_id=unique_id, model=model, post_type="normal")
+    def __init__(self, model):
+        # Pass only model to super().__init__ in Mesa 3.1.4
+        super().__init__(model=model, post_type="normal")
         self.agent_type = "human"
 
         # Satisfaction ranges from 0 (negative) to 100 (positive)
@@ -75,11 +75,14 @@ class HumanAgent(SocialMediaAgent):
 
     def react_to_posts(self):
         """React to posts from connected or nearby agents."""
-        # Get all active connected agents
-        connected_agents = [
-            self.get_agent_by_id(agent_id) for agent_id in self.connections
-            if self.get_agent_by_id(agent_id) is not None and self.get_agent_by_id(agent_id).active
-        ]
+        # Get all active connected agents - updated for Mesa 3.1.4
+        connected_agents = []
+        for agent_id in self.connections:
+            # Find the agent with the matching ID
+            for agent in self.model.agents:
+                if agent.unique_id == agent_id and agent.active:
+                    connected_agents.append(agent)
+                    break
 
         # Also consider nearby agents in topic space that aren't connected yet
         nearby_agents = self.model.get_nearby_agents(self)

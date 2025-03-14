@@ -7,6 +7,9 @@ import mesa
 import numpy as np
 import networkx as nx
 from datetime import date, timedelta
+# Fix the import path for AgentSet
+from mesa.core.agent_set import AgentSet
+from mesa.datacollection import DataCollector
 
 from HumanAgent import HumanAgent
 from BotAgent import BotAgent
@@ -37,11 +40,12 @@ class SmallWorldNetworkModel(mesa.Model):
         self.topic_shift_frequency = topic_shift_frequency
         self.dimensions = dimensions
 
-        # Initialize the agents collection (replaces schedule in Mesa 3.1.4)
-        self.agents = mesa.agent_set.AgentSet()
+        # Initialize the agents collection (corrected for Mesa 3.1.4)
+        # self.agents is already initialized by Model.__init__()
+        # No need to explicitly create it
 
         # Initialize counters and trackers
-        self.steps = 0
+        # Note: self.steps is now automatically managed by Mesa 3.0+
         self.next_id = 0
         self.active_humans = 0
         self.active_bots = 0
@@ -50,7 +54,7 @@ class SmallWorldNetworkModel(mesa.Model):
         self.avg_human_satisfaction = 0
 
         # Initialize data collector
-        self.datacollector = mesa.DataCollector(
+        self.datacollector = DataCollector(
             model_reporters={
                 "Active Humans": lambda m: m.active_humans,
                 "Active Bots": lambda m: m.active_bots,
@@ -60,9 +64,9 @@ class SmallWorldNetworkModel(mesa.Model):
             },
             agent_reporters={
                 "Satisfaction": lambda a: getattr(a, "satisfaction", 0),
-                "Agent Type": lambda a: a.agent_type,
-                "Active": lambda a: a.active,
-                "Connections": lambda a: len(a.connections),
+                "Agent Type": lambda a: getattr(a, "agent_type", ""),
+                "Active": lambda a: getattr(a, "active", False),
+                "Connections": lambda a: len(getattr(a, "connections", [])),
             }
         )
 
@@ -74,6 +78,8 @@ class SmallWorldNetworkModel(mesa.Model):
 
     def get_next_id(self):
         """Get next unique ID and increment counter."""
+        # Note: In Mesa 3.0+, unique_id is automatically assigned
+        # This method is kept for backward compatibility
         next_id = self.next_id
         self.next_id += 1
         return next_id
@@ -99,14 +105,12 @@ class SmallWorldNetworkModel(mesa.Model):
         """Create initial human and bot agents."""
         # Create humans
         for i in range(self.num_initial_humans):
-            agent = HumanAgent(self.get_next_id(), self)
-            self.agents.add(agent)
+            agent = HumanAgent(model=self)  # Updated for Mesa 3.1.4
             self.active_humans += 1
 
         # Create bots
         for i in range(self.num_initial_bots):
-            agent = BotAgent(self.get_next_id(), self)
-            self.agents.add(agent)
+            agent = BotAgent(model=self)  # Updated for Mesa 3.1.4
             self.active_bots += 1
 
         # Create initial connections based on network topology
@@ -124,14 +128,17 @@ class SmallWorldNetworkModel(mesa.Model):
             agent2_id = edge[1]
 
             # Skip if either agent doesn't exist (possible during rewiring)
-            if agent1_id >= self.next_id or agent2_id >= self.next_id:
+            if agent1_id >= len(self.agents) or agent2_id >= len(self.agents):
                 continue
 
-            agent1 = self.agents.get_agent_by_id(agent1_id)
-            agent2 = self.agents.get_agent_by_id(agent2_id)
+            # In Mesa 3.1.4, get agents by their position in the list
+            active_agents = [a for a in self.agents if a.active]
+            if agent1_id < len(active_agents) and agent2_id < len(active_agents):
+                agent1 = active_agents[agent1_id]
+                agent2 = active_agents[agent2_id]
 
-            if agent1 and agent2 and agent1.active and agent2.active:
-                agent1.add_connection(agent2)
+                if agent1 and agent2 and agent1.active and agent2.active:
+                    agent1.add_connection(agent2)
 
     def rewire_network(self):
         """Rewire the network connections to simulate changing interests."""
@@ -184,15 +191,13 @@ class SmallWorldNetworkModel(mesa.Model):
         # Create new humans
         num_new_humans = self.random.poisson(self.human_creation_rate)
         for _ in range(num_new_humans):
-            agent = HumanAgent(self.get_next_id(), self)
-            self.agents.add(agent)
+            agent = HumanAgent(model=self)  # Updated for Mesa 3.1.4
             self.active_humans += 1
 
         # Create new bots
         num_new_bots = self.random.poisson(self.bot_creation_rate)
         for _ in range(num_new_bots):
-            agent = BotAgent(self.get_next_id(), self)
-            self.agents.add(agent)
+            agent = BotAgent(model=self)  # Updated for Mesa 3.1.4
             self.active_bots += 1
 
     def update_agent_counts(self):
@@ -203,12 +208,12 @@ class SmallWorldNetworkModel(mesa.Model):
         deactivated_bots = 0
 
         for agent in self.agents:
-            if agent.agent_type == "human":
+            if getattr(agent, "agent_type", "") == "human":
                 if agent.active:
                     active_humans += 1
                 else:
                     deactivated_humans += 1
-            elif agent.agent_type == "bot":
+            elif getattr(agent, "agent_type", "") == "bot":
                 if agent.active:
                     active_bots += 1
                 else:
@@ -232,7 +237,7 @@ class SmallWorldNetworkModel(mesa.Model):
 
     def step(self):
         """Advance the model by one step."""
-        # Execute agent steps (using the new Mesa 3.1.4 syntax)
+        # Execute agent steps (using the Mesa 3.1.4 syntax)
         self.agents.shuffle_do("step")
 
         # Create new agents
@@ -248,5 +253,4 @@ class SmallWorldNetworkModel(mesa.Model):
         # Update data collector
         self.datacollector.collect(self)
 
-        # Increment step counter
-        self.steps += 1
+        # Note: In Mesa 3.0+, steps counter is automatically incremented
