@@ -186,14 +186,14 @@ class SmallWorldNetworkModel(mesa.Model):
 
     def create_new_agents(self):
         """Create new agents based on creation rates."""
-        # Create new humans
-        num_new_humans = self.random.poisson(self.human_creation_rate)
+        # Create new humans - Use np_random for Poisson distribution
+        num_new_humans = self.np_random.poisson(self.human_creation_rate)
         for _ in range(num_new_humans):
             agent = HumanAgent(model=self)  # Updated for Mesa 3.1.4
             self.active_humans += 1
 
-        # Create new bots
-        num_new_bots = self.random.poisson(self.bot_creation_rate)
+        # Create new bots - Use np_random for Poisson distribution
+        num_new_bots = self.np_random.poisson(self.bot_creation_rate)
         for _ in range(num_new_bots):
             agent = BotAgent(model=self)  # Updated for Mesa 3.1.4
             self.active_bots += 1
