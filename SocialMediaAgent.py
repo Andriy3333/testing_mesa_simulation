@@ -1,25 +1,24 @@
 """
+SocialMediaAgent.py - Base class for agents in social media simulation
 using Mesa 3.1.4
 """
 
 import mesa
 import random
-import numpy as np
-import constants
 from datetime import date, timedelta
 
 class SocialMediaAgent(mesa.Agent):
     """Base class for all agents in the social media simulation."""
 
-    def __init__(self, unique_id, model, post_type = None, post_frequency = None):
+    def __init__(self, unique_id, model, post_type=None, post_frequency=None):
         super().__init__(unique_id, model)
         self.creation_date = date(2022, 1, 1) + timedelta(model.steps)
         self.deactivation_date = None
         self.active = True
         self.connections = set()  # Set of connected agents
-        self.post_frequency = post_frequency # Posts per day
+        self.post_frequency = post_frequency  # Posts per day
         self.last_post_date = self.creation_date
-        self.popularity = random.uniform(0,1)
+        self.popularity = model.random.uniform(0, 1)  # Use model's RNG for reproducibility
         self.posted_today = False
         self.post_type = post_type
 
@@ -33,19 +32,17 @@ class SocialMediaAgent(mesa.Agent):
             return
 
     def get_agent_by_id(self, id):
-        """Retrieve an agent by their unique ID from the model's schedule."""
-        return self.model._agents.get(id, None)
+        """Retrieve an agent by their unique ID from the model's agents collection."""
+        return self.model.agents.get_agent_by_id(id)
 
     def should_post(self):
         """Determine if the agent should post based on their post frequency."""
-        return random.random() < self.post_frequency
-
+        return self.model.random.random() < self.post_frequency  # Use model's RNG for reproducibility
 
     def deactivate(self):
         """Deactivate the agent."""
         self.active = False
         self.deactivation_date = self.get_current_date(self.model)
-        # TODO Add code to increment counter in model once added
 
     def add_connection(self, other_agent):
         """Add a connection to another agent."""

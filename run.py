@@ -1,10 +1,12 @@
 """
-run_simulation.py - Script to run the social media simulation
+run.py - Script to run the social media simulation
+using Mesa 3.1.4
 """
 
 import matplotlib.pyplot as plt
 import numpy as np
 from model import SmallWorldNetworkModel
+
 
 def run_simulation(steps=365, num_humans=100, num_bots=20, seed=None):
     """
@@ -58,6 +60,7 @@ def run_simulation(steps=365, num_humans=100, num_bots=20, seed=None):
 
     return model, model_data, agent_data
 
+
 def plot_results(model_data, seed=None):
     """
     Plot the results of the simulation.
@@ -104,6 +107,14 @@ def plot_results(model_data, seed=None):
         plt.savefig("simulation_results.png")
 
     plt.show()
+
+if __name__ == "__main__":
+    # Run a single simulation with a specific seed
+    model, model_data, agent_data = run_simulation(steps=365, num_humans=100, num_bots=20, seed=42)
+
+    # Uncomment to run multiple simulations and compare results
+    # results = run_comparison(steps=365, num_humans=100, num_bots=20, seeds=[42, 123, 456])
+
 
 def run_comparison(steps=365, num_humans=100, num_bots=20, seeds=[42, 123, 456]):
     """
@@ -169,10 +180,3 @@ def plot_comparison(results):
     plt.tight_layout()
     plt.savefig("simulation_comparison.png")
     plt.show()
-
-if __name__ == "__main__":
-    # Run a single simulation with a specific seed
-    model, model_data, agent_data = run_simulation(steps=365, num_humans=100, num_bots=20, seed=42)
-
-    # Uncomment to run multiple simulations and compare results
-    # results = run_comparison(steps=365, num_humans=100, num_bots=20, seeds=[42, 123, 456])

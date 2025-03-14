@@ -4,9 +4,7 @@ using Mesa 3.1.4
 """
 
 from SocialMediaAgent import SocialMediaAgent
-import mesa
 import numpy as np
-import constants
 from datetime import date, timedelta
 
 

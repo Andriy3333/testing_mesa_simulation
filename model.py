@@ -6,7 +6,6 @@ using Mesa 3.1.4
 import mesa
 import numpy as np
 import networkx as nx
-import random
 from datetime import date, timedelta
 
 from HumanAgent import HumanAgent
@@ -98,13 +97,13 @@ class SmallWorldNetworkModel(mesa.Model):
         # Create humans
         for i in range(self.num_initial_humans):
             agent = HumanAgent(self.get_next_id(), self)
-            self.schedule.add(agent)
+            self.agents.add(agent)
             self.active_humans += 1
 
         # Create bots
         for i in range(self.num_initial_bots):
             agent = BotAgent(self.get_next_id(), self)
-            self.schedule.add(agent)
+            self.agents.add(agent)
             self.active_bots += 1
 
         # Create initial connections based on network topology
@@ -113,7 +112,7 @@ class SmallWorldNetworkModel(mesa.Model):
     def update_agent_connections(self):
         """Update agent connections based on current network topology."""
         # Reset all connections
-        for agent_id, agent in self.schedule._agents.items():
+        for agent in self.agents:
             agent.connections = set()
 
         # Create connections based on network edges
@@ -125,8 +124,8 @@ class SmallWorldNetworkModel(mesa.Model):
             if agent1_id >= self.next_id or agent2_id >= self.next_id:
                 continue
 
-            agent1 = self.schedule._agents.get(agent1_id)
-            agent2 = self.schedule._agents.get(agent2_id)
+            agent1 = self.agents.get_agent_by_id(agent1_id)
+            agent2 = self.agents.get_agent_by_id(agent2_id)
 
             if agent1 and agent2 and agent1.active and agent2.active:
                 agent1.add_connection(agent2)
@@ -152,8 +151,8 @@ class SmallWorldNetworkModel(mesa.Model):
         """Get agents that are nearby in topic space."""
         nearby_agents = []
 
-        for other_id, other in self.schedule._agents.items():
-            if other_id != agent.unique_id and other.active:
+        for other in self.agents:
+            if other.unique_id != agent.unique_id and other.active:
                 # Calculate topic similarity
                 similarity = self.calculate_topic_similarity(agent, other)
                 if similarity > threshold:
@@ -180,17 +179,17 @@ class SmallWorldNetworkModel(mesa.Model):
     def create_new_agents(self):
         """Create new agents based on creation rates."""
         # Create new humans
-        num_new_humans = np.random.poisson(self.human_creation_rate)
+        num_new_humans = self.random.poisson(self.human_creation_rate)
         for _ in range(num_new_humans):
             agent = HumanAgent(self.get_next_id(), self)
-            self.schedule.add(agent)
+            self.agents.add(agent)
             self.active_humans += 1
 
         # Create new bots
-        num_new_bots = np.random.poisson(self.bot_creation_rate)
+        num_new_bots = self.random.poisson(self.bot_creation_rate)
         for _ in range(num_new_bots):
             agent = BotAgent(self.get_next_id(), self)
-            self.schedule.add(agent)
+            self.agents.add(agent)
             self.active_bots += 1
 
     def update_agent_counts(self):
@@ -200,7 +199,7 @@ class SmallWorldNetworkModel(mesa.Model):
         deactivated_humans = 0
         deactivated_bots = 0
 
-        for agent in self.schedule.agents:
+        for agent in self.agents:
             if agent.agent_type == "human":
                 if agent.active:
                     active_humans += 1
@@ -220,7 +219,7 @@ class SmallWorldNetworkModel(mesa.Model):
     def get_avg_human_satisfaction(self):
         """Calculate average satisfaction of active human agents."""
         satisfactions = [
-            agent.satisfaction for agent in self.schedule.agents
+            agent.satisfaction for agent in self.agents
             if getattr(agent, "agent_type", "") == "human" and agent.active
         ]
 
@@ -231,7 +230,7 @@ class SmallWorldNetworkModel(mesa.Model):
     def step(self):
         """Advance the model by one step."""
         # Execute agent steps
-        self.agents.shuffle_do("step")()
+        self.agents.shuffle_do("step")
 
         # Create new agents
         self.create_new_agents()
