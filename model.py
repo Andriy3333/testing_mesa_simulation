@@ -7,8 +7,6 @@ import mesa
 import numpy as np
 import networkx as nx
 from datetime import date, timedelta
-# Remove the incorrect import
-# from mesa.core.agent_set import AgentSet
 from mesa.datacollection import DataCollector
 
 from HumanAgent import HumanAgent
@@ -32,6 +30,9 @@ class SmallWorldNetworkModel(mesa.Model):
         # Pass the seed to super().__init__() as required in Mesa 3.0+
         super().__init__(seed=seed)
 
+        # Create a numpy random generator with the same seed
+        self.np_random = np.random.RandomState(seed)
+
         self.num_initial_humans = num_initial_humans
         self.num_initial_bots = num_initial_bots
         self.human_creation_rate = human_creation_rate
@@ -39,10 +40,6 @@ class SmallWorldNetworkModel(mesa.Model):
         self.connection_rewiring_prob = connection_rewiring_prob
         self.topic_shift_frequency = topic_shift_frequency
         self.dimensions = dimensions
-
-        # Initialize the agents collection (corrected for Mesa 3.1.4)
-        # self.agents is already initialized by Model.__init__()
-        # No need to explicitly create it
 
         # Initialize counters and trackers
         # Note: self.steps is now automatically managed by Mesa 3.0+

@@ -23,7 +23,7 @@ class BotAgent(SocialMediaAgent):
         self.detection_difficulty = model.random.uniform(0.3, 0.9)  # Higher means harder to detect
         self.malicious_post_rate = model.random.uniform(0.01, 1)
         # Use model's numpy RNG wrapper
-        self.topic_position = model.random.normal(0, 1, size=5)  # Fixed topic position
+        self.topic_position = model.np_random.normal(0, 1, size=5)  # Fixed topic position
         self.topic_mobility = model.random.uniform(0.0, 0.3)  # Lower mobility than humans
 
         # Set specific parameters based on bot type
@@ -91,7 +91,7 @@ class BotAgent(SocialMediaAgent):
     def shift_topic(self):
         """Slightly shift the bot's topic position (with limited mobility)."""
         # Small random shift in topic position - use model's numpy RNG wrapper
-        shift = self.model.random.normal(0, self.topic_mobility, size=5)
+        shift = self.model.np_random.normal(0, self.topic_mobility, size=5)
         self.topic_position = self.topic_position + shift
 
         # Normalize to stay in reasonable bounds

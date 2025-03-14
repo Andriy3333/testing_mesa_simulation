@@ -26,7 +26,7 @@ class HumanAgent(SocialMediaAgent):
 
         # Position in the topic space (for network formation)
         # Use model's numpy RNG wrapper
-        self.topic_position = model.random.normal(0, 0.5, size=5)  # 5-dimensional topic space
+        self.topic_position = model.np_random.normal(0, 0.5, size=5)  # 5-dimensional topic space
 
         self.post_frequency = model.random.uniform(0.1, 0.6)
         self.popularity = model.random.uniform(0.3, 0.95)
@@ -65,7 +65,7 @@ class HumanAgent(SocialMediaAgent):
     def move_in_topic_space(self):
         """Move in topic space to simulate changing interests."""
         # Small random shift in topic position - use model's numpy RNG wrapper
-        shift = self.model.random.normal(0, 0.1, size=5)  # 5-dimensional topic space
+        shift = self.model.np_random.normal(0, 0.1, size=5)  # 5-dimensional topic space
         self.topic_position = self.topic_position + shift
 
         # Normalize to stay in similar bounds
