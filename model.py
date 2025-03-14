@@ -11,6 +11,7 @@ from mesa.datacollection import DataCollector
 
 from HumanAgent import HumanAgent
 from BotAgent import BotAgent
+from SocialMediaAgent import SocialMediaAgent
 import constants  # Assuming constants file exists
 
 class SmallWorldNetworkModel(mesa.Model):
@@ -18,10 +19,11 @@ class SmallWorldNetworkModel(mesa.Model):
 
     def __init__(
         self,
-        num_initial_humans=100,
-        num_initial_bots=20,
-        human_creation_rate=0.1,  # New humans per step
-        bot_creation_rate=0.05,   # New bots per step
+        network_stability = 0.9,
+        num_initial_humans=500,
+        num_initial_bots=100,
+        human_creation_rate=1,  # New humans per step
+        bot_creation_rate=1,   # New bots per step
         connection_rewiring_prob=0.1,  # For small world network
         topic_shift_frequency=30,  # Steps between major topic shifts
         dimensions=5,  # Dimensions in topic space
@@ -139,21 +141,38 @@ class SmallWorldNetworkModel(mesa.Model):
                 source_agent.add_connection(target_agent)
 
     def rewire_network(self):
-        """Rewire the network connections to simulate changing interests."""
+        """Rewire the network connections but preserve some existing connections."""
+        # Get active agents
+        active_agents = [agent for agent in self.agents if agent.active]
+        n = len(active_agents)
+
+        if n <= 4:  # Need at least 5 nodes for our approach
+            return
+
+        # Store existing connections before rewiring
+        existing_connections = {}
+        for i, agent in enumerate(active_agents):
+            existing_connections[i] = [
+                active_agents.index(self.get_agent_by_id(conn_id))
+                for conn_id in agent.connections
+                if self.get_agent_by_id(conn_id) in active_agents
+            ]
+
         # Create a new small world network
-        n = self.active_humans + self.active_bots
         k = 4  # Each node connected to k nearest neighbors
+        self.network = nx.watts_strogatz_graph(
+            n, k, self.connection_rewiring_prob,
+            seed=self.random.randint(0, 2 ** 32 - 1)
+        )
 
-        if n > k:  # Make sure we have enough nodes
-            self.network = nx.watts_strogatz_graph(
-                n,
-                k,
-                self.connection_rewiring_prob,
-                seed=self.random.randint(0, 2 ** 32 - 1)  # Use the model's RNG for seed
-            )
+        # Add some of the previous connections back (based on network_stability)
+        for i, connections in existing_connections.items():
+            for j in connections:
+                if i < n and j < n and self.random.random() < self.network_stability:
+                    self.network.add_edge(i, j)
 
-            # Update agent connections
-            self.update_agent_connections()
+        # Update agent connections
+        self.update_agent_connections()
 
     def get_nearby_agents(self, agent, threshold=0.5):
         """Get agents that are nearby in topic space."""
