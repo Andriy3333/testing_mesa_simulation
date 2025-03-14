@@ -156,16 +156,16 @@ class HumanAgent(SocialMediaAgent):
             if satisfaction_change > 0:
                 # Positive interaction strengthens connection
                 if other_agent.unique_id not in self.connections:
-                    # 20% chance to form new connection after positive interaction
+                    # 3% chance to form new connection after positive interaction
                     # Use model's RNG for reproducibility
-                    if self.model.random.random() < 0.2:
+                    if self.model.random.random() < 0.03:
                         self.add_connection(other_agent)
             else:
                 # Negative interaction might break connection
                 if other_agent.unique_id in self.connections:
                     # 10% chance to break connection after negative interaction
                     # Use model's RNG for reproducibility
-                    if self.model.random.random() < 0.1:
+                    if self.model.random.random() < 0.02:
                         self.remove_connection(other_agent)
 
         # For human-to-bot, negative interactions might lead to blocking

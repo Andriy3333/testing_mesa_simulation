@@ -215,8 +215,8 @@ def SocialMediaDashboard():
     # Create the dashboard layout
     with solara.Column():
         with solara.Row():
-            # Parameter sliders column
-            with solara.Column(classes=["w-1/4"]):
+            # Parameter sliders column - INCREASED WIDTH FROM 1/4 to 1/3
+            with solara.Column(classes=["w-1/3"]):
                 with solara.Card(title="Simulation Parameters", subtitle="Adjust parameters for the model"):
                     solara.SliderInt(label="Initial Humans", value=num_initial_humans, min=10, max=500)
                     solara.SliderInt(label="Initial Bots", value=num_initial_bots, min=0, max=200)
@@ -229,13 +229,13 @@ def SocialMediaDashboard():
                     solara.SliderInt(label="Initial Human Satisfaction", value=human_satisfaction_init, min=0, max=100)
                     solara.SliderInt(label="Random Seed", value=seed, min=0, max=1000)
 
-            # Social Network Graph
-            with solara.Column(classes=["w-2/4"]):
+            # Social Network Graph - ADJUSTED WIDTH FROM 2/4 to 2/5
+            with solara.Column(classes=["w-2/5"]):
                 if model.value:
                     solara.FigureMatplotlib(network_visualization(model.value))
 
-            # Satisfaction Histogram
-            with solara.Column(classes=["w-1/4"]):
+            # Satisfaction Histogram - ADJUSTED TO MATCH PROPORTIONS
+            with solara.Column(classes=["w-4/15"]):
                 if model.value:
                     solara.FigureMatplotlib(satisfaction_histogram(model.value))
 

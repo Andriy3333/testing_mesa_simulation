@@ -20,7 +20,7 @@ class BotAgent(SocialMediaAgent):
         self.agent_type = "bot"
 
         # Bot characteristics - use model's RNG
-        self.detection_difficulty = model.random.uniform(0.3, 0.9)  # Higher means harder to detect
+        self.detection_rate = model.random.uniform(0.3, 0.9)  # Higher means harder to detect
         self.malicious_post_rate = model.random.uniform(0.01, 1)
         # Use model's numpy RNG wrapper
         self.topic_position = model.np_random.normal(0, 1, size=5)  # Fixed topic position
@@ -33,15 +33,15 @@ class BotAgent(SocialMediaAgent):
         """Configure bot parameters based on type."""
         if self.bot_type == "misinformation":
             self.post_frequency = self.model.random.uniform(0.2, 0.8)
-            self.detection_difficulty = self.model.random.uniform(0.4, 0.7)
+            self.detection_rate = self.model.random.uniform(0.01, 0.1)
             # self.connection_strategy = model.random.choice(["targeted", "echo_chamber", "random", "broadcast"])
         elif self.bot_type == "spam":
             self.post_frequency = self.model.random.uniform(0.5, 0.99)
-            self.detection_difficulty = self.model.random.uniform(0.1, 0.2)
+            self.detection_rate = self.model.random.uniform(0.05, 0.2)
             # self.connection_strategy = model.random.choice(["broadcast", "random"])
         elif self.bot_type == "astroturfing":
             self.post_frequency = self.model.random.uniform(0.2, 0.8)
-            self.detection_difficulty = self.model.random.uniform(0.4, 0.7)
+            self.detection_rate = self.model.random.uniform(0.01, 0.1)
             # self.connection_strategy = model.random.choice(["targeted", "echo_chamber", "random", "broadcast"])
 
     def step(self):
@@ -64,7 +64,7 @@ class BotAgent(SocialMediaAgent):
     def check_ban(self):
         """Check if the bot gets banned."""
         # Use model's RNG for reproducibility
-        if self.model.random.random() < (1 - self.detection_difficulty) / 10:
+        if self.model.random.random() < self.detection_rate:
             self.deactivate()
 
     def bot_post(self):
