@@ -75,14 +75,12 @@ class HumanAgent(SocialMediaAgent):
 
     def react_to_posts(self):
         """React to posts from connected or nearby agents."""
-        # Get all active connected agents - updated for Mesa 3.1.4
+        # Get all active connected agents
         connected_agents = []
         for agent_id in self.connections:
-            # Find the agent with the matching ID
-            for agent in self.model.agents:
-                if agent.unique_id == agent_id and agent.active:
-                    connected_agents.append(agent)
-                    break
+            agent = self.get_agent_by_id(agent_id)
+            if agent and agent.active:
+                connected_agents.append(agent)
 
         # Also consider nearby agents in topic space that aren't connected yet
         nearby_agents = self.model.get_nearby_agents(self)

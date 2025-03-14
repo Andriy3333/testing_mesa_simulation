@@ -7,8 +7,8 @@ import mesa
 import numpy as np
 import networkx as nx
 from datetime import date, timedelta
-# Fix the import path for AgentSet
-from mesa.core.agent_set import AgentSet
+# Remove the incorrect import
+# from mesa.core.agent_set import AgentSet
 from mesa.datacollection import DataCollector
 
 from HumanAgent import HumanAgent
@@ -122,23 +122,24 @@ class SmallWorldNetworkModel(mesa.Model):
         for agent in self.agents:
             agent.connections = set()
 
+        # Get all active agents
+        active_agents = [agent for agent in self.agents if agent.active]
+
         # Create connections based on network edges
         for edge in self.network.edges():
-            agent1_id = edge[0]
-            agent2_id = edge[1]
+            source_idx, target_idx = edge
 
-            # Skip if either agent doesn't exist (possible during rewiring)
-            if agent1_id >= len(self.agents) or agent2_id >= len(self.agents):
+            # Skip if indices are out of range
+            if source_idx >= len(active_agents) or target_idx >= len(active_agents):
                 continue
 
-            # In Mesa 3.1.4, get agents by their position in the list
-            active_agents = [a for a in self.agents if a.active]
-            if agent1_id < len(active_agents) and agent2_id < len(active_agents):
-                agent1 = active_agents[agent1_id]
-                agent2 = active_agents[agent2_id]
+            # Get the agents using their indices in the active_agents list
+            source_agent = active_agents[source_idx]
+            target_agent = active_agents[target_idx]
 
-                if agent1 and agent2 and agent1.active and agent2.active:
-                    agent1.add_connection(agent2)
+            # Add connection between the agents
+            if source_agent and target_agent:
+                source_agent.add_connection(target_agent)
 
     def rewire_network(self):
         """Rewire the network connections to simulate changing interests."""

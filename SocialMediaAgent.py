@@ -16,7 +16,7 @@ class SocialMediaAgent(mesa.Agent):
         self.creation_date = date(2022, 1, 1) + timedelta(model.steps)
         self.deactivation_date = None
         self.active = True
-        self.connections = set()  # Set of connected agents
+        self.connections = set()  # Set of connected agent unique_ids
         self.post_frequency = post_frequency  # Posts per day
         self.last_post_date = self.creation_date
         self.popularity = model.random.uniform(0, 1)  # Use model's RNG for reproducibility
@@ -32,10 +32,10 @@ class SocialMediaAgent(mesa.Agent):
         if not self.active:
             return
 
-    def get_agent_by_id(self, id):
+    def get_agent_by_id(self, agent_id):
         """Retrieve an agent by their unique ID from the model's agents collection."""
         for agent in self.model.agents:
-            if agent.unique_id == id:
+            if agent.unique_id == agent_id:
                 return agent
         return None
 
@@ -47,6 +47,14 @@ class SocialMediaAgent(mesa.Agent):
         """Deactivate the agent."""
         self.active = False
         self.deactivation_date = self.get_current_date(self.model)
+
+    def remove(self):
+        """Remove the agent from the simulation.
+        In Mesa 3.1.4, this method should be called instead of directly
+        removing from a scheduler."""
+        self.deactivate()  # First deactivate
+        # Note: In Mesa 3.1.4, there's no need to explicitly remove from scheduler
+        # as agents are managed internally
 
     def add_connection(self, other_agent):
         """Add a connection to another agent."""
@@ -64,8 +72,7 @@ class SocialMediaAgent(mesa.Agent):
         """Return a list of connected agent instances."""
         connected_agents = []
         for agent_id in self.connections:
-            for agent in self.model.agents:
-                if agent.unique_id == agent_id:
-                    connected_agents.append(agent)
-                    break
+            agent = self.get_agent_by_id(agent_id)
+            if agent:
+                connected_agents.append(agent)
         return connected_agents
