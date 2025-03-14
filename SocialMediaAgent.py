@@ -11,7 +11,10 @@ class SocialMediaAgent(mesa.Agent):
     """Base class for all agents in the social media simulation."""
 
     def __init__(self, unique_id, model, post_type=None, post_frequency=None):
-        super().__init__(unique_id, model)
+        # In Mesa 3.1.4, Agent.__init__ no longer accepts positional arguments
+        # We need to explicitly pass unique_id and model as kwargs
+        super().__init__(unique_id=unique_id, model=model)
+
         self.creation_date = date(2022, 1, 1) + timedelta(model.steps)
         self.deactivation_date = None
         self.active = True

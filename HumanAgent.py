@@ -12,7 +12,8 @@ class HumanAgent(SocialMediaAgent):
     """Human agent in the social media simulation."""
 
     def __init__(self, unique_id, model):
-        super().__init__(unique_id, model, post_type="normal")
+        # Pass keyword arguments to super().__init__
+        super().__init__(unique_id=unique_id, model=model, post_type="normal")
         self.agent_type = "human"
 
         # Satisfaction ranges from 0 (negative) to 100 (positive)

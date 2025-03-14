@@ -37,6 +37,9 @@ class SmallWorldNetworkModel(mesa.Model):
         self.topic_shift_frequency = topic_shift_frequency
         self.dimensions = dimensions
 
+        # Initialize the agents collection (replaces schedule in Mesa 3.1.4)
+        self.agents = mesa.agent_set.AgentSet()
+
         # Initialize counters and trackers
         self.steps = 0
         self.next_id = 0
@@ -229,7 +232,7 @@ class SmallWorldNetworkModel(mesa.Model):
 
     def step(self):
         """Advance the model by one step."""
-        # Execute agent steps
+        # Execute agent steps (using the new Mesa 3.1.4 syntax)
         self.agents.shuffle_do("step")
 
         # Create new agents
