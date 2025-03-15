@@ -20,13 +20,17 @@ class SmallWorldNetworkModel(mesa.Model):
     def __init__(
         self,
         network_stability = 0.9,
-        num_initial_humans=500,
-        num_initial_bots=100,
-        human_creation_rate=1,  # New humans per step
-        bot_creation_rate=1,   # New bots per step
+        num_initial_humans=100,
+        num_initial_bots=20,
+        human_creation_rate=0.1,  # New humans per step
+        bot_creation_rate=0.05,   # New bots per step
         connection_rewiring_prob=0.1,  # For small world network
         topic_shift_frequency=30,  # Steps between major topic shifts
         dimensions=5,  # Dimensions in topic space
+        # New parameters to handle slider values
+        human_human_positive_bias=None,
+        human_bot_negative_bias=None,
+        human_satisfaction_init=None,
         seed=None,  # Added seed parameter
     ):
         # Pass the seed to super().__init__() as required in Mesa 3.0+
@@ -42,6 +46,12 @@ class SmallWorldNetworkModel(mesa.Model):
         self.connection_rewiring_prob = connection_rewiring_prob
         self.topic_shift_frequency = topic_shift_frequency
         self.dimensions = dimensions
+        self.network_stability = network_stability
+
+        # Store bias parameters with defaults from constants
+        self.human_human_positive_bias = human_human_positive_bias if human_human_positive_bias is not None else constants.HUMAN_HUMAN_POSITIVE_BIAS
+        self.human_bot_negative_bias = human_bot_negative_bias if human_bot_negative_bias is not None else constants.HUMAN_BOT_NEGATIVE_BIAS
+        self.human_satisfaction_init = human_satisfaction_init if human_satisfaction_init is not None else constants.DEFAULT_HUMAN_SATISFACTION_INIT
 
         # Initialize counters and trackers
         # Note: self.steps is now automatically managed by Mesa 3.0+
@@ -89,8 +99,8 @@ class SmallWorldNetworkModel(mesa.Model):
         # This will just store the structure, agents are stored in the schedule
 
         # Start with a ring lattice
-        n = self.num_initial_humans + self.num_initial_bots
-        k = 4  # Each node connected to k nearest neighbors
+        n = max(5, self.num_initial_humans + self.num_initial_bots)  # Ensure at least 5 nodes
+        k = min(4, n-1)  # Each node connected to k nearest neighbors, but can't exceed n-1
 
         # Use the model's random number generator for reproducibility
         self.network = nx.watts_strogatz_graph(
@@ -123,6 +133,10 @@ class SmallWorldNetworkModel(mesa.Model):
 
         # Get all active agents
         active_agents = [agent for agent in self.agents if agent.active]
+
+        # If no active agents, return early
+        if not active_agents:
+            return
 
         # Create connections based on network edges
         for edge in self.network.edges():
@@ -159,7 +173,7 @@ class SmallWorldNetworkModel(mesa.Model):
             ]
 
         # Create a new small world network
-        k = 4  # Each node connected to k nearest neighbors
+        k = min(4, n-1)  # Each node connected to k nearest neighbors, can't exceed n-1
         self.network = nx.watts_strogatz_graph(
             n, k, self.connection_rewiring_prob,
             seed=self.random.randint(0, 2 ** 32 - 1)
@@ -173,6 +187,13 @@ class SmallWorldNetworkModel(mesa.Model):
 
         # Update agent connections
         self.update_agent_connections()
+
+    def get_agent_by_id(self, agent_id):
+        """Retrieve an agent by their unique ID from the model's agents collection."""
+        for agent in self.agents:
+            if agent.unique_id == agent_id:
+                return agent
+        return None
 
     def get_nearby_agents(self, agent, threshold=0.5):
         """Get agents that are nearby in topic space."""

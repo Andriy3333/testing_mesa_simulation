@@ -6,21 +6,18 @@ using Mesa 3.1.4 and Solara 1.44.1
 import solara
 import numpy as np
 import networkx as nx
-from functools import partial
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
 import pandas as pd
-import time
 import threading
 
 from model import SmallWorldNetworkModel
-from mesa.visualization import SolaraViz, make_space_component, make_plot_component
 
 
 # Function to visualize the network
 def network_visualization(model):
     """Creates a network visualization of the social media model"""
-    fig, ax = plt.subplots(figsize=(6, 6))
+    # Smaller figure size
+    fig, ax = plt.subplots(figsize=(5, 5))
 
     # Create a graph from the agent connections
     G = nx.Graph()
@@ -48,10 +45,10 @@ def network_visualization(model):
         agent_type = G.nodes[node]['agent_type']
         if agent_type == 'human':
             node_colors.append('blue')
-            node_sizes.append(50)
+            node_sizes.append(40)  # Smaller node size
         else:  # bot
             node_colors.append('red')
-            node_sizes.append(50)
+            node_sizes.append(40)  # Smaller node size
 
     # Draw the graph
     nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=node_sizes, alpha=0.8, ax=ax)
@@ -60,18 +57,21 @@ def network_visualization(model):
     # Add legend
     ax.plot([0], [0], 'o', color='blue', label='Human')
     ax.plot([0], [0], 'o', color='red', label='Bot')
-    ax.legend()
+    ax.legend(fontsize=8)
 
-    ax.set_title(f"Social Network (Step {model.steps})")
+    ax.set_title(f"Social Network (Step {model.steps})", fontsize=10)
     ax.axis('off')
 
+    # Add tight layout to make better use of space
+    plt.tight_layout()
     return fig
 
 
 # Function to visualize satisfaction distribution
 def satisfaction_histogram(model):
     """Creates a histogram of human satisfaction levels"""
-    fig, ax = plt.subplots(figsize=(6, 4))
+    # Smaller figure size
+    fig, ax = plt.subplots(figsize=(5, 3.5))
 
     # Get satisfaction values from active human agents
     satisfaction_values = [
@@ -82,115 +82,131 @@ def satisfaction_histogram(model):
     if satisfaction_values:
         # Create histogram
         ax.hist(satisfaction_values, bins=10, range=(0, 100), alpha=0.7, color='green')
-        ax.set_title(f"Human Satisfaction Distribution (Step {model.steps})")
-        ax.set_xlabel("Satisfaction Level")
-        ax.set_ylabel("Number of Humans")
+        ax.set_title(f"Human Satisfaction (Step {model.steps})", fontsize=10)
+        ax.set_xlabel("Satisfaction Level", fontsize=8)
+        ax.set_ylabel("Number of Humans", fontsize=8)
         ax.set_xlim(0, 100)
-        ax.grid(alpha=0.3)
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(labelsize=8)
     else:
         ax.text(0.5, 0.5, "No active human agents",
                 horizontalalignment='center', verticalalignment='center',
-                transform=ax.transAxes)
+                transform=ax.transAxes, fontsize=8)
 
+    # Add tight layout to make better use of space
+    plt.tight_layout()
     return fig
 
 
 # Create a Solara dashboard component
 @solara.component
 def SocialMediaDashboard():
-    # Define sliders for adjustable parameters with reactive values
-    num_initial_humans = solara.use_reactive(100)
-    num_initial_bots = solara.use_reactive(20)
-    human_creation_rate = solara.use_reactive(0.1)
-    bot_creation_rate = solara.use_reactive(0.05)
-    connection_rewiring_prob = solara.use_reactive(0.1)
-    topic_shift_frequency = solara.use_reactive(30)
+    # Model parameters with state
+    num_initial_humans, set_num_initial_humans = solara.use_state(100)
+    num_initial_bots, set_num_initial_bots = solara.use_state(20)
+    human_creation_rate, set_human_creation_rate = solara.use_state(0.1)
+    bot_creation_rate, set_bot_creation_rate = solara.use_state(0.05)
+    connection_rewiring_prob, set_connection_rewiring_prob = solara.use_state(0.1)
+    topic_shift_frequency, set_topic_shift_frequency = solara.use_state(30)
+    human_human_positive_bias, set_human_human_positive_bias = solara.use_state(0.7)
+    human_bot_negative_bias, set_human_bot_negative_bias = solara.use_state(0.8)
+    human_satisfaction_init, set_human_satisfaction_init = solara.use_state(100)
+    seed, set_seed = solara.use_state(42)
 
-    # Additional parameters from constants
-    human_human_positive_bias = solara.use_reactive(0.7)
-    human_bot_negative_bias = solara.use_reactive(0.8)
-    human_satisfaction_init = solara.use_reactive(100)
+    # Flag to indicate parameters have changed
+    params_changed, set_params_changed = solara.use_state(False)
 
     # Simulation control values
-    is_running = solara.use_reactive(False)
-    step_size = solara.use_reactive(1)
-    seed = solara.use_reactive(42)
+    is_running, set_is_running = solara.use_state(False)
+    step_size, set_step_size = solara.use_state(1)
+    model, set_model = solara.use_state(None)
+    model_data_list, set_model_data_list = solara.use_state([])
+    update_counter, set_update_counter = solara.use_state(0)
 
-    # Reactive model to update visualization
-    model = solara.use_reactive(None)
+    # Function to update a parameter and mark as changed
+    def update_param(value, setter):
+        setter(value)
+        set_params_changed(True)
 
-    # Store model data as a list of dictionaries instead of directly as a DataFrame
-    # to prevent re-render loops
-    model_data_list = solara.use_reactive([])
+    # Function to create a new model with current parameters
+    def create_new_model():
+        print(f"\n=== Creating new model with parameters ===")
+        print(f"Initial Humans: {num_initial_humans}")
+        print(f"Initial Bots: {num_initial_bots}")
+        print(f"Human Creation Rate: {human_creation_rate}")
+        print(f"Bot Creation Rate: {bot_creation_rate}")
+        print(f"Connection Rewiring: {connection_rewiring_prob}")
+        print(f"Topic Shift Frequency: {topic_shift_frequency}")
+        print(f"Human-Human Bias: {human_human_positive_bias}")
+        print(f"Human-Bot Bias: {human_bot_negative_bias}")
+        print(f"Initial Satisfaction: {human_satisfaction_init}")
+        print(f"Seed: {seed}")
 
-    # Update counter for triggering re-renders
-    update_counter = solara.use_reactive(0)
+        new_model = SmallWorldNetworkModel(
+            num_initial_humans=num_initial_humans,
+            num_initial_bots=num_initial_bots,
+            human_creation_rate=human_creation_rate,
+            bot_creation_rate=bot_creation_rate,
+            connection_rewiring_prob=connection_rewiring_prob,
+            topic_shift_frequency=topic_shift_frequency,
+            human_human_positive_bias=human_human_positive_bias,
+            human_bot_negative_bias=human_bot_negative_bias,
+            human_satisfaction_init=human_satisfaction_init,
+            seed=seed
+        )
+        return new_model
 
     # Function to initialize the model
     def initialize_model():
-        # Override certain constants based on slider values
-        import constants
-        constants.HUMAN_HUMAN_POSITIVE_BIAS = human_human_positive_bias.value
-        constants.HUMAN_BOT_NEGATIVE_BIAS = human_bot_negative_bias.value
-        constants.DEFAULT_HUMAN_SATISFACTION_INIT = human_satisfaction_init.value
-
-        # Create the model
-        new_model = SmallWorldNetworkModel(
-            num_initial_humans=num_initial_humans.value,
-            num_initial_bots=num_initial_bots.value,
-            human_creation_rate=human_creation_rate.value,
-            bot_creation_rate=bot_creation_rate.value,
-            connection_rewiring_prob=connection_rewiring_prob.value,
-            topic_shift_frequency=topic_shift_frequency.value,
-            seed=seed.value
-        )
-
         # Reset data
-        model_data_list.value = []
-
+        set_model_data_list([])
+        # Create new model
+        new_model = create_new_model()
+        # Clear the params_changed flag
+        set_params_changed(False)
         return new_model
 
-    # Initialize the model
-    if model.value is None:
-        model.value = initialize_model()
+    # Initialize the model if it's None
+    if model is None:
+        set_model(initialize_model())
 
     # Function to run a single step
     def step():
-        if model.value:
+        if model:
             # Step the model
-            model.value.step()
+            model.step()
 
             # Get current data as a dictionary
-            df_row = model.value.datacollector.get_model_vars_dataframe().iloc[-1:].to_dict('records')[0]
-            df_row['step'] = model.value.steps
+            df_row = model.datacollector.get_model_vars_dataframe().iloc[-1:].to_dict('records')[0]
+            df_row['step'] = model.steps
 
-            # Update data list using a new list to avoid reference issues
-            model_data_list.value = model_data_list.value + [df_row]
+            # Update data list
+            set_model_data_list(model_data_list + [df_row])
 
             # Increment update counter to trigger re-renders
-            update_counter.value += 1
+            set_update_counter(update_counter + 1)
 
     # Function to run multiple steps
     def run_steps():
-        for _ in range(step_size.value):
+        for _ in range(step_size):
             step()
 
     # Reset button function
     def reset():
-        is_running.value = False
-        model.value = initialize_model()
-        update_counter.value += 1
+        set_is_running(False)
+        set_model(initialize_model())
+        set_update_counter(update_counter + 1)
 
     # Background auto-stepping using a side effect
     def auto_step_effect():
         # Only set up auto-stepping when running is true
-        if not is_running.value:
+        if not is_running:
             return None
 
         # Function to execute in a timer
         def timer_callback():
             # This runs in a background thread
-            if is_running.value:
+            if is_running:
                 # Use solara.patch to safely update from a background thread
                 solara.patch(lambda: run_steps())
 
@@ -204,103 +220,217 @@ def SocialMediaDashboard():
         return lambda: None  # No cleanup needed
 
     # Set up the auto-stepping effect when is_running changes
-    solara.use_effect(auto_step_effect, [is_running.value])
+    solara.use_effect(auto_step_effect, [is_running])
 
     # Convert model_data_list to DataFrame for plotting
     def get_model_dataframe():
-        if model_data_list.value:
-            return pd.DataFrame(model_data_list.value)
+        if model_data_list:
+            return pd.DataFrame(model_data_list)
         return pd.DataFrame()
 
     # Create the dashboard layout
     with solara.Column():
+        # First row - Initial Parameters, Graph, and Histogram
         with solara.Row():
-            # Parameter sliders column - INCREASED WIDTH FROM 1/4 to 1/3
-            with solara.Column(classes=["w-1/3"]):
-                with solara.Card(title="Simulation Parameters", subtitle="Adjust parameters for the model"):
-                    solara.SliderInt(label="Initial Humans", value=num_initial_humans, min=10, max=500)
-                    solara.SliderInt(label="Initial Bots", value=num_initial_bots, min=0, max=200)
-                    solara.SliderFloat(label="Human Creation Rate", value=human_creation_rate, min=0.0, max=1.0, step=0.01)
-                    solara.SliderFloat(label="Bot Creation Rate", value=bot_creation_rate, min=0.0, max=1.0, step=0.01)
-                    solara.SliderFloat(label="Connection Rewiring Probability", value=connection_rewiring_prob, min=0.0, max=1.0, step=0.01)
-                    solara.SliderInt(label="Topic Shift Frequency (steps)", value=topic_shift_frequency, min=1, max=100)
-                    solara.SliderFloat(label="Human-Human Positive Bias", value=human_human_positive_bias, min=0.0, max=1.0, step=0.01)
-                    solara.SliderFloat(label="Human-Bot Negative Bias", value=human_bot_negative_bias, min=0.0, max=1.0, step=0.01)
-                    solara.SliderInt(label="Initial Human Satisfaction", value=human_satisfaction_init, min=0, max=100)
-                    solara.SliderInt(label="Random Seed", value=seed, min=0, max=1000)
+            # Initial parameters column (left)
+            with solara.Column(classes=["w-1/4"]):
+                with solara.Card(title="Initial Parameters"):
+                    # Add a warning if parameters have changed
+                    if params_changed:
+                        solara.Text("Parameters have changed. Click 'Initialize' to apply.")
 
-            # Social Network Graph - ADJUSTED WIDTH FROM 2/4 to 2/5
-            with solara.Column(classes=["w-2/5"]):
-                if model.value:
-                    solara.FigureMatplotlib(network_visualization(model.value))
+                    # Initial Population and Growth Rates
+                    solara.Markdown("### Initial Population")
+                    solara.Text(f"Initial Humans: {num_initial_humans}")
+                    solara.SliderInt(
+                        label="Initial Humans",
+                        min=10,
+                        max=500,
+                        value=num_initial_humans,
+                        on_value=lambda v: update_param(v, set_num_initial_humans)
+                    )
 
-            # Satisfaction Histogram - ADJUSTED TO MATCH PROPORTIONS
-            with solara.Column(classes=["w-4/15"]):
-                if model.value:
-                    solara.FigureMatplotlib(satisfaction_histogram(model.value))
+                    solara.Text(f"Initial Bots: {num_initial_bots}")
+                    solara.SliderInt(
+                        label="Initial Bots",
+                        min=0,
+                        max=200,
+                        value=num_initial_bots,
+                        on_value=lambda v: update_param(v, set_num_initial_bots)
+                    )
 
-        # Center-aligned row for controls and state
-        with solara.Row(justify="center"):
-            # Simulation controls
-            with solara.Column(classes=["w-3/5"]):
+                    solara.Markdown("### Growth Rates")
+                    solara.Text(f"Human Creation Rate: {human_creation_rate:.2f}")
+                    solara.SliderFloat(
+                        label="Human Creation Rate",
+                        min=0.0,
+                        max=1.0,
+                        step=0.01,
+                        value=human_creation_rate,
+                        on_value=lambda v: update_param(v, set_human_creation_rate)
+                    )
+
+                    solara.Text(f"Bot Creation Rate: {bot_creation_rate:.2f}")
+                    solara.SliderFloat(
+                        label="Bot Creation Rate",
+                        min=0.0,
+                        max=1.0,
+                        step=0.01,
+                        value=bot_creation_rate,
+                        on_value=lambda v: update_param(v, set_bot_creation_rate)
+                    )
+
+            # Social Network Graph (middle)
+            with solara.Column(classes=["w-3/8"]):
+                if model:
+                    solara.FigureMatplotlib(network_visualization(model))
+
+            # Satisfaction Histogram (right)
+            with solara.Column(classes=["w-3/8"]):
+                if model:
+                    solara.FigureMatplotlib(satisfaction_histogram(model))
+
+        # Second row - Network Parameters and Simulation Controls
+        with solara.Row():
+            # Network & Interactions - much wider now (left)
+            with solara.Column(classes=["w-3/4"]):
+                with solara.Card(title="Network & Interactions"):
+                    with solara.Row():
+                        # Column 1 of parameters
+                        with solara.Column(classes=["w-1/3"]):
+                            solara.Text(f"Connection Rewiring: {connection_rewiring_prob:.2f}")
+                            solara.SliderFloat(
+                                label="Connection Rewiring",
+                                min=0.0,
+                                max=1.0,
+                                step=0.01,
+                                value=connection_rewiring_prob,
+                                on_value=lambda v: update_param(v, set_connection_rewiring_prob)
+                            )
+
+                            solara.Text(f"Topic Shift Frequency: {topic_shift_frequency}")
+                            solara.SliderInt(
+                                label="Topic Shift Frequency",
+                                min=1,
+                                max=100,
+                                value=topic_shift_frequency,
+                                on_value=lambda v: update_param(v, set_topic_shift_frequency)
+                            )
+
+                        # Column 2 of parameters
+                        with solara.Column(classes=["w-1/3"]):
+                            solara.Text(f"Human-Human Positive Bias: {human_human_positive_bias:.2f}")
+                            solara.SliderFloat(
+                                label="Human-Human Positive Bias",
+                                min=0.0,
+                                max=1.0,
+                                step=0.01,
+                                value=human_human_positive_bias,
+                                on_value=lambda v: update_param(v, set_human_human_positive_bias)
+                            )
+
+                            solara.Text(f"Human-Bot Negative Bias: {human_bot_negative_bias:.2f}")
+                            solara.SliderFloat(
+                                label="Human-Bot Negative Bias",
+                                min=0.0,
+                                max=1.0,
+                                step=0.01,
+                                value=human_bot_negative_bias,
+                                on_value=lambda v: update_param(v, set_human_bot_negative_bias)
+                            )
+
+                        # Column 3 of parameters
+                        with solara.Column(classes=["w-1/3"]):
+                            solara.Text(f"Initial Human Satisfaction: {human_satisfaction_init}")
+                            solara.SliderInt(
+                                label="Initial Human Satisfaction",
+                                min=0,
+                                max=100,
+                                value=human_satisfaction_init,
+                                on_value=lambda v: update_param(v, set_human_satisfaction_init)
+                            )
+
+                            solara.Text(f"Random Seed: {seed}")
+                            solara.SliderInt(
+                                label="Random Seed",
+                                min=0,
+                                max=1000,
+                                value=seed,
+                                on_value=lambda v: update_param(v, set_seed)
+                            )
+
+            # Simulation Controls and Current State - moved far right
+            with solara.Column(classes=["w-1/4"]):
+                # Simulation controls
                 with solara.Card(title="Simulation Controls"):
                     # First row of controls
                     with solara.Row():
                         with solara.Column(classes=["w-1/3"]):
-                            solara.Button(label="Initialize", on_click=reset)
+                            solara.Button(
+                                label="Initialize" if not params_changed else "Initialize (Apply Changes)",
+                                on_click=reset
+                            )
                         with solara.Column(classes=["w-1/3"]):
                             solara.Button(label="Step", on_click=step)
                         with solara.Column(classes=["w-1/3"]):
                             solara.Button(
-                                label="Run" if not is_running.value else "Pause",
-                                on_click=lambda: setattr(is_running, "value", not is_running.value)
+                                label="Run" if not is_running else "Pause",
+                                on_click=lambda: set_is_running(not is_running)
                             )
 
-                    # Second row with just the step slider
+                    # Second row with steps slider
                     with solara.Row():
-                        solara.SliderInt(label="Steps per Click", value=step_size, min=1, max=30)
+                        solara.Text(f"Steps per Click: {step_size}")
+                        solara.SliderInt(
+                            label="Steps per Click",
+                            min=1,
+                            max=30,
+                            value=step_size,
+                            on_value=lambda v: set_step_size(v)
+                        )
 
-            # Small spacer column
-            with solara.Column(classes=["w-1/20"]):
-                pass
-
-            # Current state display
-            with solara.Column(classes=["w-1/4"]):
-                if model.value:
+                # Current state display
+                if model:
                     with solara.Card(title="Current State"):
                         with solara.Row():
                             solara.Info(
-                                f"Step: {model.value.steps} | "
-                                f"Active Humans: {model.value.active_humans} | "
-                                f"Active Bots: {model.value.active_bots} | "
-                                f"Avg Satisfaction: {model.value.get_avg_human_satisfaction():.1f}"
+                                f"Step: {model.steps} | "
+                                f"Active Humans: {model.active_humans} | "
+                                f"Active Bots: {model.active_bots} | "
+                                f"Avg Satisfaction: {model.get_avg_human_satisfaction():.1f}"
                             )
 
-        # Create time series plots
+        # Third row - Time series plots
         df = get_model_dataframe()
+        with solara.Row():
+            with solara.Column(classes=["w-1/2"]):
+                if model and not df.empty:
+                    # Line plots of key metrics
+                    with solara.Card(title="Population Over Time"):
+                        fig1, ax1 = plt.subplots(figsize=(6, 3))  # Smaller figure
+                        ax1.plot(df['step'], df['Active Humans'], label='Humans')
+                        ax1.plot(df['step'], df['Active Bots'], label='Bots')
+                        ax1.set_xlabel('Step', fontsize=8)
+                        ax1.set_ylabel('Count', fontsize=8)
+                        ax1.legend(fontsize=8)
+                        ax1.grid(True, alpha=0.3)
+                        ax1.tick_params(labelsize=8)
+                        plt.tight_layout()
+                        solara.FigureMatplotlib(fig1)
 
-        with solara.Columns([1, 1]):
-            if model.value and not df.empty:
-                # Line plots of key metrics
-                with solara.Card(title="Population Over Time"):
-                    fig1, ax1 = plt.subplots(figsize=(8, 4))
-                    ax1.plot(df['step'], df['Active Humans'], label='Humans')
-                    ax1.plot(df['step'], df['Active Bots'], label='Bots')
-                    ax1.set_xlabel('Step')
-                    ax1.set_ylabel('Count')
-                    ax1.legend()
-                    ax1.grid(True, alpha=0.3)
-                    solara.FigureMatplotlib(fig1)
-
-                # Satisfaction over time
-                with solara.Card(title="Satisfaction Over Time"):
-                    fig2, ax2 = plt.subplots(figsize=(8, 4))
-                    ax2.plot(df['step'], df['Average Human Satisfaction'], color='green')
-                    ax2.set_xlabel('Step')
-                    ax2.set_ylabel('Satisfaction Level')
-                    ax2.set_ylim(0, 100)
-                    ax2.grid(True, alpha=0.3)
-                    solara.FigureMatplotlib(fig2)
+            with solara.Column(classes=["w-1/2"]):
+                if model and not df.empty:
+                    # Satisfaction over time
+                    with solara.Card(title="Satisfaction Over Time"):
+                        fig2, ax2 = plt.subplots(figsize=(6, 3))  # Smaller figure
+                        ax2.plot(df['step'], df['Average Human Satisfaction'], color='green')
+                        ax2.set_xlabel('Step', fontsize=8)
+                        ax2.set_ylabel('Satisfaction Level', fontsize=8)
+                        ax2.set_ylim(0, 100)
+                        ax2.grid(True, alpha=0.3)
+                        ax2.tick_params(labelsize=8)
+                        plt.tight_layout()
+                        solara.FigureMatplotlib(fig2)
 
 
 # Main app

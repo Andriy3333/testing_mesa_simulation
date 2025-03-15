@@ -16,8 +16,8 @@ class HumanAgent(SocialMediaAgent):
         super().__init__(model=model, post_type="normal")
         self.agent_type = "human"
 
-        # Satisfaction ranges from 0 (negative) to 100 (positive)
-        self.satisfaction = 100
+        # Get satisfaction from model if available, otherwise use default 100
+        self.satisfaction = getattr(model, "human_satisfaction_init", 100)
 
         # Personality parameters that affect interactions - use model's RNG
         self.irritability = model.random.uniform(0.5, 2)  # More irritable users will lose satisfaction quicker
@@ -111,9 +111,14 @@ class HumanAgent(SocialMediaAgent):
 
         # Human-to-human interaction
         if other_agent.agent_type == "human":
-            # Humans generally have positive interactions with each other
-            # with some randomness - use model's RNG
-            base_change = self.model.random.uniform(-0.5, 2.0)  # Slightly favored positive
+            # Get positive bias value from model or use default
+            positive_bias = getattr(self.model, "human_human_positive_bias", 0.7)
+
+            # Adjust the random range based on the bias (higher bias = more positive interactions)
+            base_change = self.model.random.uniform(
+                -0.5 * (1 - positive_bias),  # Lower bound becomes less negative with higher bias
+                2.0 * positive_bias          # Upper bound becomes more positive with higher bias
+            )
 
             # Topic similarity increases positive satisfaction
             similarity = self.model.calculate_topic_similarity(self, other_agent)
@@ -123,19 +128,25 @@ class HumanAgent(SocialMediaAgent):
 
         # Human-to-bot interaction
         elif other_agent.agent_type == "bot":
-            # Mostly negative interactions with bots
+            # Get negative bias value from model or use default
+            negative_bias = getattr(self.model, "human_bot_negative_bias", 0.8)
+
             if other_agent.post_type == "normal":
-                # Occasionally bots post normal content - use model's RNG
-                satisfaction_change = self.model.random.uniform(-0.2, 0.5)
+                # Occasionally bots post normal content
+                # More negative with higher negative_bias
+                satisfaction_change = self.model.random.uniform(
+                    -0.2 * negative_bias,        # Lower bound (more negative with higher bias)
+                    0.5 * (1 - negative_bias)    # Upper bound (less positive with higher bias)
+                )
             elif other_agent.post_type == "misinformation":
                 # Misinformation is more negative for users who value authenticity
-                satisfaction_change = -1.0 * self.authenticity * self.irritability
+                satisfaction_change = -1.0 * self.authenticity * self.irritability * negative_bias
             elif other_agent.post_type == "astroturfing":
                 # Astroturfing is similarly negative
-                satisfaction_change = -0.8 * self.authenticity * self.irritability
+                satisfaction_change = -0.8 * self.authenticity * self.irritability * negative_bias
             elif other_agent.post_type == "spam":
                 # Spam is universally annoying
-                satisfaction_change = -1.0 * self.irritability
+                satisfaction_change = -1.0 * self.irritability * negative_bias
 
         # Apply satisfaction change
         self.satisfaction += satisfaction_change
@@ -173,7 +184,10 @@ class HumanAgent(SocialMediaAgent):
             if satisfaction_change < -1.5:
                 # Very negative interactions with bots might lead to blocking
                 if other_agent.unique_id in self.connections:
-                    # 30% chance to block bot after very negative interaction
+                    # Get negative bias value from model or use default
+                    negative_bias = getattr(self.model, "human_bot_negative_bias", 0.8)
+                    # Chance to block increases with negative bias
+                    block_chance = 0.3 * negative_bias
                     # Use model's RNG for reproducibility
-                    if self.model.random.random() < 0.3:
+                    if self.model.random.random() < block_chance:
                         self.remove_connection(other_agent)
