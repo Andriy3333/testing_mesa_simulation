@@ -86,17 +86,26 @@ def satisfaction_histogram(model):
         ax.set_xlabel("Satisfaction Level", fontsize=8)
         ax.set_ylabel("Number of Humans", fontsize=8)
         ax.set_xlim(0, 100)
+
+        # Set a fixed y-axis limit based on the number of active humans
+        # This ensures the scale doesn't change between steps
+        max_humans = model.active_humans
+        # Use a slightly higher value to account for potential growth
+        y_max = max(20, int(max_humans * 1.2))
+        ax.set_ylim(0, y_max)
+
         ax.grid(True, alpha=0.3)
         ax.tick_params(labelsize=8)
     else:
         ax.text(0.5, 0.5, "No active human agents",
                 horizontalalignment='center', verticalalignment='center',
                 transform=ax.transAxes, fontsize=8)
+        # Set default y-limit even when no agents
+        ax.set_ylim(0, 20)
 
     # Add tight layout to make better use of space
     plt.tight_layout()
     return fig
-
 
 # Create a Solara dashboard component
 @solara.component
