@@ -13,17 +13,15 @@ import threading
 from model import SmallWorldNetworkModel
 
 
-# Function to visualize the network
 def network_visualization(model):
     """Creates a network visualization of the social media model"""
-    # Smaller figure size
     fig, ax = plt.subplots(figsize=(5, 5))
-
-    # Create a graph from the agent connections
     G = nx.Graph()
 
-    # Add nodes
-    active_agents = [agent for agent in model.agents if agent.active]
+    # Add nodes - but only for agents that have connections
+    active_agents = [agent for agent in model.agents
+                     if agent.active and len(agent.connections) > 0]
+
     for agent in active_agents:
         G.add_node(agent.unique_id,
                    agent_type=agent.agent_type,
@@ -111,10 +109,10 @@ def satisfaction_histogram(model):
 @solara.component
 def SocialMediaDashboard():
     # Model parameters with state
-    num_initial_humans, set_num_initial_humans = solara.use_state(100)
-    num_initial_bots, set_num_initial_bots = solara.use_state(20)
-    human_creation_rate, set_human_creation_rate = solara.use_state(0.1)
-    bot_creation_rate, set_bot_creation_rate = solara.use_state(0.05)
+    num_initial_humans, set_num_initial_humans = solara.use_state(400)
+    num_initial_bots, set_num_initial_bots = solara.use_state(100)
+    human_creation_rate, set_human_creation_rate = solara.use_state(5)
+    bot_creation_rate, set_bot_creation_rate = solara.use_state(20)
     connection_rewiring_prob, set_connection_rewiring_prob = solara.use_state(0.1)
     topic_shift_frequency, set_topic_shift_frequency = solara.use_state(30)
     human_human_positive_bias, set_human_human_positive_bias = solara.use_state(0.7)
@@ -253,7 +251,7 @@ def SocialMediaDashboard():
                     solara.Text(f"Initial Humans: {num_initial_humans}")
                     solara.SliderInt(
                         label="Initial Humans",
-                        min=10,
+                        min=100,
                         max=500,
                         value=num_initial_humans,
                         on_value=lambda v: update_param(v, set_num_initial_humans)
@@ -263,7 +261,7 @@ def SocialMediaDashboard():
                     solara.SliderInt(
                         label="Initial Bots",
                         min=0,
-                        max=200,
+                        max=500,
                         value=num_initial_bots,
                         on_value=lambda v: update_param(v, set_num_initial_bots)
                     )
@@ -273,8 +271,8 @@ def SocialMediaDashboard():
                     solara.SliderFloat(
                         label="Human Creation Rate",
                         min=0.0,
-                        max=1.0,
-                        step=0.01,
+                        max=10,
+                        step=0.1,
                         value=human_creation_rate,
                         on_value=lambda v: update_param(v, set_human_creation_rate)
                     )
@@ -283,8 +281,8 @@ def SocialMediaDashboard():
                     solara.SliderFloat(
                         label="Bot Creation Rate",
                         min=0.0,
-                        max=1.0,
-                        step=0.01,
+                        max=20,
+                        step=0.1,
                         value=bot_creation_rate,
                         on_value=lambda v: update_param(v, set_bot_creation_rate)
                     )

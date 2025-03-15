@@ -22,8 +22,8 @@ class SmallWorldNetworkModel(mesa.Model):
         network_stability = 0.9,
         num_initial_humans=100,
         num_initial_bots=20,
-        human_creation_rate=0.1,  # New humans per step
-        bot_creation_rate=0.05,   # New bots per step
+        human_creation_rate=1,  # New humans per step
+        bot_creation_rate=3,   # New bots per step
         connection_rewiring_prob=0.1,  # For small world network
         topic_shift_frequency=30,  # Steps between major topic shifts
         dimensions=5,  # Dimensions in topic space
@@ -125,18 +125,19 @@ class SmallWorldNetworkModel(mesa.Model):
         # Create initial connections based on network topology
         self.update_agent_connections()
 
+    # In model.py - update_agent_connections method
     def update_agent_connections(self):
         """Update agent connections based on current network topology."""
         # Reset all connections
         for agent in self.agents:
             agent.connections = set()
 
-        # Get all active agents
+        # Get active agents
         active_agents = [agent for agent in self.agents if agent.active]
 
-        # If no active agents, return early
-        if not active_agents:
-            return
+        # Separate humans and bots
+        humans = [agent for agent in active_agents if agent.agent_type == "human"]
+        bots = [agent for agent in active_agents if agent.agent_type == "bot"]
 
         # Create connections based on network edges
         for edge in self.network.edges():
@@ -153,6 +154,16 @@ class SmallWorldNetworkModel(mesa.Model):
             # Add connection between the agents
             if source_agent and target_agent:
                 source_agent.add_connection(target_agent)
+
+        # NEW: Add extra bot-human connections (preferential to new humans)
+        for bot in bots:
+            # Target humans with fewer connections first
+            sorted_humans = sorted(humans, key=lambda h: len(h.connections))
+            target_count = min(5, len(sorted_humans))  # Target up to 5 humans
+
+            for i in range(target_count):
+                if self.random.random() < 0.3:  # 30% chance per human
+                    bot.add_connection(sorted_humans[i])
 
     def rewire_network(self):
         """Rewire the network connections but preserve some existing connections."""

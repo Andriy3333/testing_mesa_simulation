@@ -131,27 +131,24 @@ class HumanAgent(SocialMediaAgent):
 
             satisfaction_change = base_change + topic_effect
 
-        # Human-to-bot interaction
         elif other_agent.agent_type == "bot":
             # Get negative bias value from model or use default
             negative_bias = getattr(self.model, "human_bot_negative_bias", 0.8)
 
             if other_agent.post_type == "normal":
-                # Occasionally bots post normal content
-                # More negative with higher negative_bias
                 satisfaction_change = self.model.random.uniform(
-                    -0.2 * negative_bias,        # Lower bound (more negative with higher bias)
-                    0.5 * (1 - negative_bias)    # Upper bound (less positive with higher bias)
+                    0.5 * negative_bias,  # More negative
+                    0.2 * (1 - negative_bias)  # Less positive
                 )
             elif other_agent.post_type == "misinformation":
-                # Misinformation is more negative for users who value authenticity
-                satisfaction_change = -1.0 * self.authenticity * self.irritability * negative_bias
+                # Increased negative impact
+                satisfaction_change = -10 * self.authenticity * self.irritability * negative_bias
             elif other_agent.post_type == "astroturfing":
-                # Astroturfing is similarly negative
-                satisfaction_change = -0.8 * self.authenticity * self.irritability * negative_bias
+                # Increased negative impact
+                satisfaction_change = -10 * self.authenticity * self.irritability * negative_bias
             elif other_agent.post_type == "spam":
-                # Spam is universally annoying
-                satisfaction_change = -1.0 * self.irritability * negative_bias
+                # Increased negative impact
+                satisfaction_change = 1-0 * self.irritability * negative_bias
 
         # Apply satisfaction change
         self.satisfaction += satisfaction_change
@@ -160,42 +157,42 @@ class HumanAgent(SocialMediaAgent):
         self.satisfaction = max(0, min(100, self.satisfaction))
 
         # Update connection probability based on interaction
-        self.update_connection_probability(other_agent, satisfaction_change)
+        #self.update_connection_probability(other_agent, satisfaction_change)
 
-    def update_connection_probability(self, other_agent, satisfaction_change):
-        """Update probability of maintaining connection based on interaction."""
-        # ECHO CHAMBER MECHANISM DISABLED
-        # If interaction was positive, increase chance to interact again
-        # If negative, decrease chance
-
-        # For human-to-human, might form echo chambers
-        if other_agent.agent_type == "human":
-            # ECHO CHAMBER MECHANISM DISABLED
-            # if satisfaction_change > 0:
-            #     # Positive interaction strengthens connection
-            #     if other_agent.unique_id not in self.connections:
-            #         # 3% chance to form new connection after positive interaction
-            #         # Use model's RNG for reproducibility
-            #         if self.model.random.random() < 0.03:
-            #             self.add_connection(other_agent)
-            # else:
-            #     # Negative interaction might break connection
-            #     if other_agent.unique_id in self.connections:
-            #         # 10% chance to break connection after negative interaction
-            #         # Use model's RNG for reproducibility
-            #         if self.model.random.random() < 0.02:
-            #             self.remove_connection(other_agent)
-            pass  # Echo chamber mechanism disabled
-
-        # For human-to-bot, negative interactions might lead to blocking
-        elif other_agent.agent_type == "bot":
-            if satisfaction_change < -1.5:
-                # Very negative interactions with bots might lead to blocking
-                if other_agent.unique_id in self.connections:
-                    # Get negative bias value from model or use default
-                    negative_bias = getattr(self.model, "human_bot_negative_bias", 0.8)
-                    # Chance to block increases with negative bias
-                    block_chance = 0.3 * negative_bias
-                    # Use model's RNG for reproducibility
-                    if self.model.random.random() < block_chance:
-                        self.remove_connection(other_agent)
+    # def update_connection_probability(self, other_agent, satisfaction_change):
+    #     """Update probability of maintaining connection based on interaction."""
+    #     # ECHO CHAMBER MECHANISM DISABLED
+    #     # If interaction was positive, increase chance to interact again
+    #     # If negative, decrease chance
+    #
+    #     # For human-to-human, might form echo chambers
+    #     if other_agent.agent_type == "human":
+    #         # ECHO CHAMBER MECHANISM DISABLED
+    #         # if satisfaction_change > 0:
+    #         #     # Positive interaction strengthens connection
+    #         #     if other_agent.unique_id not in self.connections:
+    #         #         # 3% chance to form new connection after positive interaction
+    #         #         # Use model's RNG for reproducibility
+    #         #         if self.model.random.random() < 0.03:
+    #         #             self.add_connection(other_agent)
+    #         # else:
+    #         #     # Negative interaction might break connection
+    #         #     if other_agent.unique_id in self.connections:
+    #         #         # 10% chance to break connection after negative interaction
+    #         #         # Use model's RNG for reproducibility
+    #         #         if self.model.random.random() < 0.02:
+    #         #             self.remove_connection(other_agent)
+    #         pass  # Echo chamber mechanism disabled
+    #
+    #     # For human-to-bot, negative interactions might lead to blocking
+    #     elif other_agent.agent_type == "bot":
+    #         if satisfaction_change < -1.5:
+    #             # Very negative interactions with bots might lead to blocking
+    #             if other_agent.unique_id in self.connections:
+    #                 # Get negative bias value from model or use default
+    #                 negative_bias = getattr(self.model, "human_bot_negative_bias", 0.8)
+    #                 # Chance to block increases with negative bias
+    #                 block_chance = 0.3 * negative_bias
+    #                 # Use model's RNG for reproducibility
+    #                 if self.model.random.random() < block_chance:
+    #                     self.remove_connection(other_agent)
