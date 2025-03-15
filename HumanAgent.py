@@ -82,11 +82,16 @@ class HumanAgent(SocialMediaAgent):
             if agent and agent.active:
                 connected_agents.append(agent)
 
+        # ECHO CHAMBER MECHANISM DISABLED
         # Also consider nearby agents in topic space that aren't connected yet
-        nearby_agents = self.model.get_nearby_agents(self)
+        # nearby_agents = self.model.get_nearby_agents(self)
 
+        # ECHO CHAMBER MECHANISM DISABLED
         # Combine the lists, prioritizing connections
-        potential_interactions = connected_agents + [a for a in nearby_agents if a.unique_id not in self.connections]
+        # potential_interactions = connected_agents + [a for a in nearby_agents if a.unique_id not in self.connections]
+
+        # Only consider connected agents for interactions
+        potential_interactions = connected_agents
 
         # Filter out those who didn't post
         potential_interactions = [a for a in potential_interactions if getattr(a, "posted_today", False)]
@@ -159,25 +164,28 @@ class HumanAgent(SocialMediaAgent):
 
     def update_connection_probability(self, other_agent, satisfaction_change):
         """Update probability of maintaining connection based on interaction."""
+        # ECHO CHAMBER MECHANISM DISABLED
         # If interaction was positive, increase chance to interact again
         # If negative, decrease chance
 
         # For human-to-human, might form echo chambers
         if other_agent.agent_type == "human":
-            if satisfaction_change > 0:
-                # Positive interaction strengthens connection
-                if other_agent.unique_id not in self.connections:
-                    # 3% chance to form new connection after positive interaction
-                    # Use model's RNG for reproducibility
-                    if self.model.random.random() < 0.03:
-                        self.add_connection(other_agent)
-            else:
-                # Negative interaction might break connection
-                if other_agent.unique_id in self.connections:
-                    # 10% chance to break connection after negative interaction
-                    # Use model's RNG for reproducibility
-                    if self.model.random.random() < 0.02:
-                        self.remove_connection(other_agent)
+            # ECHO CHAMBER MECHANISM DISABLED
+            # if satisfaction_change > 0:
+            #     # Positive interaction strengthens connection
+            #     if other_agent.unique_id not in self.connections:
+            #         # 3% chance to form new connection after positive interaction
+            #         # Use model's RNG for reproducibility
+            #         if self.model.random.random() < 0.03:
+            #             self.add_connection(other_agent)
+            # else:
+            #     # Negative interaction might break connection
+            #     if other_agent.unique_id in self.connections:
+            #         # 10% chance to break connection after negative interaction
+            #         # Use model's RNG for reproducibility
+            #         if self.model.random.random() < 0.02:
+            #             self.remove_connection(other_agent)
+            pass  # Echo chamber mechanism disabled
 
         # For human-to-bot, negative interactions might lead to blocking
         elif other_agent.agent_type == "bot":
